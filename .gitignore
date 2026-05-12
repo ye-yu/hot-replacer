@@ -30,6 +30,7 @@ logs/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/keybindings.json
 
 # OS
 .DS_Store
