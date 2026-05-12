@@ -1,3 +1,3 @@
-import {add } from './add.ts';
+import {add } from './hot.ts';
 
 console.log(add(2, 3));
