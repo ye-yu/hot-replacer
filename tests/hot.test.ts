@@ -1,8 +1,10 @@
-import { describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { hotModule, hotReplace } from '../src/hot.ts';
+import { clearHotModules, hotModule, hotReplace } from '../src/hot.ts';
 
 describe('hotModule', () => {
+    beforeEach(clearHotModules)
+
     describe('class', () => {
         it('should be able to replace base class', () => {
             class BaseClassA {
@@ -19,10 +21,10 @@ describe('hotModule', () => {
 
             const HotBaseClassA = hotModule(BaseClassA)
             const instance = new HotBaseClassA()
-            assert(instance.method(), "BaseClassA")
+            assert.equal(instance.method(), "BaseClassA")
 
             hotReplace(BaseClassA, BaseClassB)
-            assert(instance.method(), "BaseClassB")
+            assert.equal(instance.method(), "BaseClassB")
 
             assert.ok(instance instanceof BaseClassA)
             assert.ok(!(instance instanceof BaseClassB))
@@ -57,12 +59,12 @@ describe('hotModule', () => {
             const HotCompositeClass = hotModule(CompositeClass)
 
             const instance = new HotCompositeClass()
-            assert(instance.makeMethodable().method(), new BaseClassA().method())
-            assert(instance.methodable.method(), new BaseClassA().method())
+            assert.equal(instance.makeMethodable().method(), new BaseClassA().method())
+            assert.equal(instance.methodable.method(), new BaseClassA().method())
 
             hotReplace(BaseClassA, BaseClassB)
-            assert(instance.makeMethodable().method(), new BaseClassB().method())
-            assert(instance.methodable.method(), new BaseClassB().method())
+            assert.equal(instance.makeMethodable().method(), new BaseClassB().method())
+            assert.equal(instance.methodable.method(), new BaseClassB().method())
         })
     })
 
@@ -76,10 +78,50 @@ describe('hotModule', () => {
             }
 
             const hotMethodA = hotModule(methodA)
-            assert(hotMethodA(), "methodA")
+            assert.equal(hotMethodA(), "methodA")
 
             hotReplace(methodA, methodB)
-            assert(hotMethodA(), "methodB")
+            assert.equal(hotMethodA(), "methodB")
+        })
+    })
+
+    describe('object', () => {
+        it('should be able to replace object properties', () => {
+            class BaseClassA {
+                method() {
+                    return "BaseClassA"
+                }
+            }
+
+            class BaseClassB {
+                method() {
+                    return "BaseClassB"
+                }
+            }
+
+            function methodA() {
+                return "methodA"
+            }
+
+            function methodB() {
+                return "methodB"
+            }
+
+            const obj = {
+                BaseClassA,
+                methodA,
+            }
+
+            const hotObj = hotModule(obj)
+
+            assert.equal(new hotObj.BaseClassA().method(), "BaseClassA")
+            assert.equal(hotObj.methodA(), "methodA")
+
+            hotReplace(BaseClassA, BaseClassB)
+            hotReplace(methodA, methodB)
+
+            assert.equal(new hotObj.BaseClassA().method(), "BaseClassB")
+            assert.equal(hotObj.methodA(), "methodB")
         })
     })
 })

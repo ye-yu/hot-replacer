@@ -3,12 +3,19 @@ export type Hotable = object | Function
 const proxies: Map<Hotable, Hotable> = new Map()
 const replacements: Map<Hotable, Hotable> = new Map()
 
+const IS_PROXY = Symbol.for("is_proxy")
+
+export function clearHotModules(): void {
+    proxies.clear()
+    replacements.clear()
+}
+
 function isPlainObject(obj: any): obj is object {
     return typeof obj === "object" && obj?.constructor === Object
 }
 
 function isClass(obj: any): obj is ({ new(...arg: any): any }) {
-    return typeof obj === "function" && obj.prototype && obj.prototype[Symbol.hasInstance] === undefined
+    return typeof obj === "function" && obj.toString().trim().startsWith('class')
 }
 
 function isMethodClass(obj: any): obj is Function {
@@ -25,6 +32,12 @@ const functionHandler: ProxyHandler<Function> = {
         const result = Reflect.apply(replacement, thisArg, argArray)
         return hotModule(result)
     },
+    get(target, p, receiver) {
+        if (p === IS_PROXY) {
+            return true
+        }
+        return Reflect.get(target, p, receiver)
+    }
 }
 
 const classHandler: ProxyHandler<{ new(...arg: any): any }> = {
@@ -36,6 +49,10 @@ const classHandler: ProxyHandler<{ new(...arg: any): any }> = {
         return hotModule(instance)
     },
     get(target, p, receiver) {
+        if (p === IS_PROXY) {
+            return true
+        }
+
         // instanceof should match base class
         if (p === Symbol.hasInstance) {
             return Reflect.get(target, p, receiver)
@@ -59,6 +76,11 @@ const classHandler: ProxyHandler<{ new(...arg: any): any }> = {
 
 const proxyHandler: ProxyHandler<object> = {
     get(target, p, receiver) {
+        if (p === IS_PROXY) {
+            return true
+        }
+
+        // bound method replacement
         const maybeReplacedClass = (replacements.get(target.constructor) ?? (target.constructor)) as Function
         const baseClassAccessed = Reflect.get(maybeReplacedClass.prototype, p)
 
@@ -71,18 +93,17 @@ const proxyHandler: ProxyHandler<object> = {
             return hotModule(bound)
         }
 
-        const replacement = replacements.get(target)!
-        const replacementAccessed = Reflect.get(replacement, p, receiver)
-
-        if (typeof replacementAccessed === "object") {
-            return hotModule(replacementAccessed)
-        }
-
-        return replacementAccessed
+        // property replacement
+        const instanceReplacement = replacements.get(target)!
+        const instanceReplacementAccessed = Reflect.get(instanceReplacement, p, receiver)
+        return hotModule(instanceReplacementAccessed)
     }
 }
 
 export function hotModule<T extends (Hotable)>(m: T): T {
+    if (typeof m === "object" && m !== null && Reflect.get(m, IS_PROXY) === true) {
+        return m
+    }
     if (proxies.has(m)) {
         return proxies.get(m) as T
     }
