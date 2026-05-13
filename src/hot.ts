@@ -5,6 +5,31 @@ const replacements: Map<Hotable, Hotable> = new Map()
 
 const IS_PROXY = Symbol.for("is_proxy")
 
+let preventProxySet: WeakSet<Hotable> = new WeakSet()
+
+/**
+ * Removes all entries from the preventProxySet. This allows previously prevented objects/functions to be proxied again.
+ */
+export function clearPreventedProxies() {
+    preventProxySet = new WeakSet();
+}
+
+export function preventProxy(m: Hotable) {
+    preventProxySet.add(m)
+}
+
+export function preventProxyGlobalModules() {
+    const globalObjects = new WeakSet<any>();
+    for (const key of Object.getOwnPropertyNames(globalThis)) try {
+        const desc = Object.getOwnPropertyDescriptor(globalThis, key);
+        if (desc?.value) {
+            preventProxy(desc.value);
+        }
+    } catch (_ignored) {}
+    globalObjects.delete(Object);
+    globalObjects.delete(Array);
+}
+
 export function clearHotModules(): void {
     proxies.clear()
     replacements.clear()
@@ -101,6 +126,7 @@ const proxyHandler: ProxyHandler<object> = {
 }
 
 export function hotModule<T extends Hotable>(m: T): T {
+    if (preventProxySet.has(m)) return m
     if (typeof m === "object" && m !== null && Reflect.get(m, IS_PROXY) === true) {
         return m
     }
@@ -122,5 +148,6 @@ export function hotModule<T extends Hotable>(m: T): T {
 }
 
 export function hotReplace<T extends Hotable>(m: T, replacement: any): void {
+    if (preventProxySet.has(m)) return
     replacements.set(m, replacement)
 }

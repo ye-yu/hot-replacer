@@ -1,6 +1,6 @@
 import { beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { clearHotModules, hotModule, hotReplace } from 'hot-replacer';
+import { clearHotModules, hotModule, hotReplace, preventProxy, clearPreventedProxies } from 'hot-replacer';
 
 // fixtures
 class BaseClassA {
@@ -147,6 +147,66 @@ class Level3ServiceB {
 
 describe('hotModule', () => {
     beforeEach(clearHotModules)
+
+    describe('preventProxy', () => {
+        it('should not proxy objects marked with preventProxy', () => {
+            const obj = { foo: 'bar' };
+            preventProxy(obj);
+            const hotObj = hotModule(obj);
+            // Should return the original object, not a proxy
+            assert.strictEqual(hotObj, obj);
+        });
+
+        it('should not proxy functions marked with preventProxy', () => {
+            function fn() { return 'baz'; }
+            preventProxy(fn);
+            const hotFn = hotModule(fn);
+            // Should return the original function, not a proxy
+            assert.strictEqual(hotFn, fn);
+        });
+
+        it('should not allow hotReplace on preventProxy objects', () => {
+            const obj = { foo: 'bar' };
+            preventProxy(obj);
+            hotReplace(obj, { foo: 'baz' });
+            // Should not replace, so hotModule should still return the original
+            const hotObj = hotModule(obj);
+            assert.strictEqual(hotObj, obj);
+            assert.strictEqual(hotObj.foo, 'bar');
+        });
+
+        it('should not allow hotReplace on preventProxy functions', () => {
+            function fn() { return 'baz'; }
+            function fn2() { return 'qux'; }
+            preventProxy(fn);
+            hotReplace(fn, fn2);
+            const hotFn = hotModule(fn);
+            assert.strictEqual(hotFn, fn);
+            assert.strictEqual(hotFn(), 'baz');
+        });
+
+        it('should allow proxying again after clearPreventedProxies', () => {
+            const obj = { foo: 'bar' };
+            preventProxy(obj);
+            assert.strictEqual(hotModule(obj), obj);
+            clearPreventedProxies();
+            const hotObj = hotModule(obj);
+            // After clearing, should not be the same reference (should be proxied)
+            assert.notStrictEqual(hotObj, obj);
+            // Proxy should still behave like the original
+            assert.strictEqual(hotObj.foo, 'bar');
+        });
+
+        it('should allow proxying functions again after clearPreventedProxies', () => {
+            function fn() { return 'baz'; }
+            preventProxy(fn);
+            assert.strictEqual(hotModule(fn), fn);
+            clearPreventedProxies();
+            const hotFn = hotModule(fn);
+            assert.notStrictEqual(hotFn, fn);
+            assert.strictEqual(hotFn(), 'baz');
+        });
+    });
 
     describe('class', () => {
         it('should be able to replace base class', () => {
@@ -318,6 +378,6 @@ describe('hotModule', () => {
             hotReplace(Level3ServiceA, Level3ServiceB)
             assert.equal(hotLevel1.level2controllerA.serviceMethod(), "Level3ServiceB")
             assert.equal(hotLevel1.level2controllerA.level3ServiceA.serviceMethod(), "Level3ServiceB")
-        })
-    })
-})
+        });
+    });
+});
