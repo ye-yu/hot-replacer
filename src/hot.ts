@@ -15,7 +15,7 @@ function isPlainObject(obj: any): obj is object {
 }
 
 function isClass(obj: any): obj is ({ new(...arg: any): any }) {
-    return typeof obj === "function" && obj.toString().trim().startsWith('class')
+    return typeof obj === "function" && obj.toString().startsWith('class')
 }
 
 function isMethodClass(obj: any): obj is Function {
@@ -89,7 +89,7 @@ const proxyHandler: ProxyHandler<object> = {
         }
 
         if (isMethodClass(baseClassAccessed)) {
-            const bound = baseClassAccessed.bind(target)
+            const bound = baseClassAccessed.bind(receiver)
             return hotModule(bound)
         }
 
@@ -100,7 +100,7 @@ const proxyHandler: ProxyHandler<object> = {
     }
 }
 
-export function hotModule<T extends (Hotable)>(m: T): T {
+export function hotModule<T extends Hotable>(m: T): T {
     if (typeof m === "object" && m !== null && Reflect.get(m, IS_PROXY) === true) {
         return m
     }
