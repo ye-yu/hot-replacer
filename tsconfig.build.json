@@ -5,5 +5,5 @@
         "outDir": "dist",
         "declaration": true
     },
-    "exclude": ["tests"]
+    "exclude": ["tests", "dist"]
 }
