@@ -1,5 +1,5 @@
 {
-  "name": "node-typescript-no-transpiler-template",
+  "name": "hot-replacer",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
@@ -8,21 +8,27 @@
   "files": [
     "dist"
   ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "test": "node --test",
     "build": "tsgo -p tsconfig.build.json"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ye-yu/node-typescript-no-transpiler-template.git"
+    "url": "git+https://github.com/ye-yu/hot-replacer.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/ye-yu/node-typescript-no-transpiler-template/issues"
+    "url": "https://github.com/ye-yu/hot-replacer/issues"
   },
-  "homepage": "https://github.com/ye-yu/node-typescript-no-transpiler-template#readme",
+  "homepage": "https://github.com/ye-yu/hot-replacer#readme",
   "devDependencies": {
     "@types/node": "^22.19.19",
     "@typescript/native-preview": "^7.0.0-dev.20260511.1"

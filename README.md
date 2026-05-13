@@ -1,27 +1,74 @@
-# node-typescript-no-transpiler-template
-Absolute minimal setup for typescript projects without bundler because node v22.18.0 already enabled type striping by default.
+# hot-replacer
 
-Don't forget to use VSCode extension for [TypeScript Native Preview](https://marketplace.visualstudio.com/items?itemName=TypeScriptTeam.native-preview).
+Replace modules while the node process is still running.
 
-Note: decorator functionalities are not natively supported. From [Node documentation](https://nodejs.org/api/typescript.html#type-stripping):
+## APIs
 
-> Since Decorators are currently a [TC39 Stage 3 proposal](https://github.com/tc39/proposal-decorators), they are not transformed and will result in a parser error. Node.js does not provide polyfills and thus will not support decorators until they are supported natively in JavaScript.
+### `hotModule`
+Defines a module that can be replaced
 
-To allow decorators, you must perform compilation anyway. However, `tsgo` is able to do this blazingly fast anyway. Just apply option:
+### `hotReplace`
+Replaces the module with a new module
 
-```json5
-// ...
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true,
+### `clearHotModules`
+Resets to the original module
 
-        // for easier build management
-        "rootDir": "src",
-        "outDir": "dist",
-// ...
+## Example application: Test module replacement
+
+```ts
+import { hotModule, hotReplace, clearHotModules } from 'hot-replacer'
+
+describe('ControllerTest', () => {
+    const controller = hotModule(new Controller())
+    beforeEach(clearHotModules)
+
+    describe('logger methods called', () => {
+        // all references to the Logger class only will be replaced with LoggerMock
+        beforeEach(() => {
+            hotReplace(Logger, LoggerMock)
+        })
+
+        it('should log with error', () => {
+            controller.method();
+            const loggerMock = controller.logger as LoggerMock
+            assert.equal(loggerMock.lastCall, "something")
+        })
+    })
+
+    describe('next test', () => {
+        // clearHotModules is called
+        // logger is no longer mocked
+    })
+})
 ```
 
-And don't forget to install the compiler:
+## Example application: Live module replacement
 
-```sh
-npm install @typescript/native-preview
+This package can be connected to a module hook to replace module in real time for development.
+
+```ts
+import { hotModule, hotReplace, clearHotModules } from 'hot-replacer'
+import { moduleHook } from 'some-package'
+import { fileWatcher } from 'some-package'
+
+moduleHook.onImport('sample-module.ts', (exports) => {
+    const hotExports: Record<string, any> = {}
+    for(const k in exports) {
+        hotExport[k] = hotModule(exports[k])
+    }
+
+    fileWatcher('sample-module.ts', async (content) => {
+        const newExports = await moduleHook.reloadModule('sample-module.ts')
+        for(const k in newExports) {
+            if (!hotExports[k]) {
+                hotExports[k] = hotModule(newExports[k])
+            } else {
+                hotReplace(exports[k], newExports[k])
+            }
+        }
+
+    })
+
+    return hotExports
+})
 ```
